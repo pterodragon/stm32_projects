@@ -1,0 +1,6 @@
+[submodule "ili9341/STM32-Tutorials"]
+	path = ili9341/STM32-Tutorials
+	url = https://github.com/MYaqoobEmbedded/STM32-Tutorials
+[submodule "ili9341/openocd"]
+	path = ili9341/openocd
+	url = git://repo.or.cz/openocd.git
