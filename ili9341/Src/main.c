@@ -47,6 +47,7 @@ SPI_HandleTypeDef hspi2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+TS_TOUCH_DATA_Def myTS_Handle;
 
 /* USER CODE END PV */
 
@@ -101,6 +102,11 @@ int main(void)
   ILI9341_setRotation(2);
   ILI9341_Fill(COLOR_NAVY);
 
+  TSC2046_Begin(&hspi2, TS_CS_GPIO_Port, TS_CS_Pin);
+  TSC2046_Calibrate();
+  ILI9341_Fill(COLOR_CYAN);
+
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -110,6 +116,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    myTS_Handle = TSC2046_GetTouchData();
+    if(myTS_Handle.isPressed)
+    {
+      //Draw a point
+      ILI9341_fillCircle(myTS_Handle.X, myTS_Handle.Y,1, COLOR_RED);
+
+      if(myTS_Handle.X >=40 && myTS_Handle.X<=240 && myTS_Handle.Y>=0 && myTS_Handle.Y<=50)
+      {
+        ILI9341_Fill(COLOR_NAVY);
+        ILI9341_Fill_Rect(40, 0, 240, 50, COLOR_BLUE);
+      }
+    }
   }
   /* USER CODE END 3 */
 }
