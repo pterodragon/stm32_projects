@@ -15,10 +15,11 @@ const uint8_t OV7670_reg[][2] = {
   /* clock related */
   {0x0C, 0x04},  // DCW enable
   {0x3E, 0x19},  // manual scaling, pclk/=2
-  {0x70, 0x3A},  // scaling_xsc
+  {0x70, 0x3A + 0x80},  // scaling_xsc // test pattern output !!! XXX
   {0x71, 0x35},  // scaling_ysc
   {0x72, 0x11}, // down sample by 2
-  {0x73, 0xf1}, // DSP clock /= 2
+  // {0x73, 0xf1}, // DSP clock /= 2
+  {0x73, 0xf4}, // DSP clock /= 16
 
   /* windowing (empirically decided...) */
   {0x17, 0x14},   // HSTART

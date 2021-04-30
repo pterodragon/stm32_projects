@@ -4,3 +4,6 @@
 [submodule "ili9341/openocd"]
 	path = ili9341/openocd
 	url = git://repo.or.cz/openocd.git
+[submodule "ov7670/ov7670/stm32_bitbang_i2c"]
+	path = ov7670/ov7670/stm32_bitbang_i2c
+	url = https://github.com/PascalPolygon/stm32_bitbang_i2c
