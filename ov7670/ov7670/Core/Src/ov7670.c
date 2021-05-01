@@ -1,6 +1,7 @@
 #include "ov7670.h"
 #include "ov7670_config.h"
 #include <stdio.h>
+#include <stm32f4xx_ll_cortex.h>
 
 #define SCL_Pin GPIO_PIN_10
 #define SCL_GPIO_Port GPIOB
@@ -29,12 +30,11 @@ HAL_StatusTypeDef sccb_write(uint8_t reg_addr, uint8_t data) {
 #endif
 }
 
-HAL_StatusTypeDef sccb_read_hal(uint8_t reg_addr, uint8_t *data) {
-  HAL_StatusTypeDef ret;
-  ret = HAL_I2C_Master_Transmit(&hi2c2, SCCB_SLAVE_ADDR, &reg_addr, 1,
-                                TIMEOUT_WAIT);
-  ret |= HAL_I2C_Master_Receive(&hi2c2, SCCB_SLAVE_ADDR, data, 1, TIMEOUT_WAIT);
-  return ret;
+uint8_t sccb_read_hal(uint8_t reg_addr) {
+  uint8_t data;
+  HAL_I2C_Master_Transmit(&hi2c2, SCCB_SLAVE_ADDR, &reg_addr, 1, TIMEOUT_WAIT);
+  HAL_I2C_Master_Receive(&hi2c2, SCCB_SLAVE_ADDR, &data, 1, TIMEOUT_WAIT);
+  return data;
 }
 void sda_set(int x) {
   HAL_GPIO_WritePin(SDA_GPIO_Port, SDA_Pin, x ? GPIO_PIN_SET : GPIO_PIN_RESET);
@@ -43,8 +43,31 @@ void sda_set(int x) {
 void scl_set(int x) {
   HAL_GPIO_WritePin(SCL_GPIO_Port, SCL_Pin, x ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
+static uint8_t fac_us = 0;
+static uint16_t fac_ms = 0;
 
-void sccb_delay() { HAL_Delay(5); }
+void delay_init(uint8_t sysclk) {
+  LL_SYSTICK_SetClkSource(LL_SYSTICK_CLKSOURCE_HCLK_DIV8);
+  fac_us = sysclk / 8;
+  fac_ms = (uint16_t)fac_us * 1000;
+  RCC;
+}
+
+void delay_us(uint32_t nus) {
+  uint32_t temp;
+  SysTick->LOAD = nus * fac_us;
+  SysTick->VAL = 0x00;
+  SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
+  do {
+    temp = SysTick->CTRL;
+  } while ((temp & 0x01) && !(temp & (1 << 16)));
+  SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
+  SysTick->VAL = 0X00;
+}
+
+void sccb_delay() {
+  delay_us(5);
+}
 
 void sccb_stop(void) {
   sda_set(0);
@@ -62,6 +85,17 @@ void sccb_start() {
   sda_set(0);
   sccb_delay();
   scl_set(0);
+}
+
+void sccb_no_ack() {
+  sccb_delay();
+  sda_set(1);
+  scl_set(1);
+  sccb_delay();
+  scl_set(0);
+  sccb_delay();
+  sda_set(0);
+  sccb_delay();
 }
 
 void sda_set_io_mode(int x) {
@@ -112,7 +146,21 @@ int sccb_write_byte(uint8_t data) {
   return res;
 }
 
-HAL_StatusTypeDef sccb_read_bitbang(uint8_t reg_addr, uint8_t data) {
+uint8_t sccb_read_bitbang(uint8_t reg_addr) {
+  sccb_start();
+  sccb_write_byte(SCCB_SLAVE_ADDR);
+  sccb_write_byte(reg_addr);
+  sccb_stop();
+  sccb_delay();
+  sccb_start();
+  sccb_write_byte(SCCB_SLAVE_ADDR | 0x01);
+  uint8_t res = sccb_read_byte();
+  sccb_no_ack();
+  sccb_stop();
+  return res;
+}
+
+HAL_StatusTypeDef sccb_write_bitbang(uint8_t reg_addr, uint8_t data) {
   uint8_t res = 0;
   sccb_start();
   sccb_write_byte(SCCB_SLAVE_ADDR);
@@ -126,29 +174,31 @@ HAL_StatusTypeDef sccb_read_bitbang(uint8_t reg_addr, uint8_t data) {
   return res;
 }
 
-HAL_StatusTypeDef sccb_read(uint8_t reg_addr, uint8_t *data) {
+HAL_StatusTypeDef sccb_read(uint8_t reg_addr) {
 #ifdef SCCB_BITBANG
-  return sccb_read_bitbang(reg_addr, data);
+  return sccb_read_bitbang(reg_addr);
 #else
-  return sccb_read_hal(reg_addr, data);
+  return sccb_read_hal(reg_addr);
 #endif
 }
 
 int ov7670_init() {
-  // returns 1 if errored, 0 if ok
-  HAL_GPIO_WritePin(CAMERA_RESET_GPIO_Port, CAMERA_RESET_Pin, GPIO_PIN_RESET);
-  HAL_Delay(100);
-  HAL_GPIO_WritePin(CAMERA_RESET_GPIO_Port, CAMERA_RESET_Pin, GPIO_PIN_SET);
-  HAL_Delay(100);
+  delay_init(170);
 
-  uint8_t data = 0;
-  sccb_read(0x0a, &data);
+  // returns 1 if errored, 0 if ok
+  // HAL_GPIO_WritePin(CAMERA_RESET_GPIO_Port, CAMERA_RESET_Pin, GPIO_PIN_RESET);
+  // HAL_Delay(100);
+  // HAL_GPIO_WritePin(CAMERA_RESET_GPIO_Port, CAMERA_RESET_Pin, GPIO_PIN_SET);
+  // HAL_Delay(100);
+
+  uint8_t data = sccb_read(0x0a);
   printf("[OV7670] pid = %02X\r\n", data);
   if (data != 0x76)
     return 1;
 
-  sccb_read(0x0b, &data);
+  data = sccb_read(0x0b);
   printf("[OV7670] ver = %02X\r\n", data);
+  return 1;
 
   {
     HAL_StatusTypeDef status;

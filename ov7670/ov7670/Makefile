@@ -24,9 +24,9 @@ DEBUG = 1
 # optimization
 OPT = -Og
 
-ifeq ($(DEBUG), 1)
-  OPT += -O0
-endif
+# ifeq ($(DEBUG), 1)
+#   OPT += -O0
+# endif
 
 #######################################
 # paths
@@ -114,7 +114,8 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
--DSTM32F446xx
+-DSTM32F446xx \
+-DSCCB_BITBANG
 
 
 # AS includes
