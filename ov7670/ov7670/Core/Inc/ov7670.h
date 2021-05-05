@@ -3,10 +3,10 @@
 
 #include "stm32f4xx_hal.h"
 
-HAL_StatusTypeDef sccb_write(uint8_t reg_addr, uint8_t data);
+int sccb_write(uint8_t reg_addr, uint8_t data);
 uint8_t sccb_read(uint8_t reg_addr);
 int ov7670_init();
-void ov7670_config();
+int ov7670_config();
 void ov7670_start_capture();
 void ov7670_stop_capture();
 
